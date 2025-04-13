@@ -1,6 +1,14 @@
 # Nano settings
 
-Creates simple config from environment variables. Smaller analog of pydantic-settings.
+Creates simple python config from environment variables. Smaller analog of pydantic-settings.
+
+## Installation
+
+```shell
+pip install nano-settings
+```
+
+## Usage
 
 ```python
 from dataclasses import dataclass
@@ -12,7 +20,7 @@ from nano_settings import BaseConfig, from_env
 class DbSetup(BaseConfig):
     max_sessions: int
     autocommit: bool = True
-    
+
 
 @dataclass
 class Database(BaseConfig):
