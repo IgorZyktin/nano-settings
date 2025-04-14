@@ -199,8 +199,9 @@ def from_env(
 
         if get_origin(field.type) is Annotated:
             _extract_annotated(field, _prefixes, attributes, errors)
-        elif (isinstance(field.type, type)
-                and issubclass(field.type, BaseConfig)):
+        elif isinstance(field.type, type) and issubclass(
+            field.type, BaseConfig
+        ):
             _extract_nested(
                 field=field,
                 field_exclude_prefix=field_exclude_prefix,
