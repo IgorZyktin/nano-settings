@@ -15,9 +15,11 @@ from typing import get_args
 from typing import get_origin
 
 __all__ = [
+    'BaseAlias',
     'BaseConfig',
     'ConfigValidationError',
     'EnvAlias',
+    'EnvAliasStrict',
     'SecretStr',
     'from_env',
     'looks_like_boolean',
@@ -57,11 +59,10 @@ class SecretStr:
         return self.__str__()
 
 
-class EnvAlias:
-    """Alternative name or names of environment variable for a field.
+class BaseAlias:
+    """Base class for aliases."""
 
-    Alias is expected to be the rightmost element in Annotated hint.
-    """
+    strict: bool = False
 
     def __init__(self, *names: str) -> None:
         """Initialize instance."""
@@ -71,19 +72,57 @@ class EnvAlias:
         """Do nothing, juts return."""
         return value
 
-    def find_matching(self, env_name: str) -> tuple[str | None, str | None]:
+    def __repr__(self) -> str:
+        """Return textual representation."""
+        name = type(self).__name__
+        strings = ', '.join(repr(x) for x in self.names)
+        return f'{name}({strings})'
+
+    def find_matching(
+        self,
+        env_name: str,
+    ) -> tuple[str, None] | tuple[None, str]:
         """Try getting value via another name."""
-        for name in self.names:
-            value = os.environ.get(name)
+        tried: list[str] = []
+
+        if not self.strict:
+            value = os.environ.get(env_name)
+            tried.append(repr(env_name))
 
             if value is not None:
                 return value, None
 
-        variables = ', '.join(map(repr, (env_name, *self.names)))
+        for name in self.names:
+            value = os.environ.get(name)
+            tried.append(repr(name))
+
+            if value is not None:
+                return value, None
+
+        variables = ', '.join(tried)
         return (
             None,
             f'None of expected environment variables are set: {variables}',
         )
+
+
+class EnvAlias(BaseAlias):
+    """Alternative name or names of environment variable for a field.
+
+    Alias is expected to be the rightmost element in Annotated hint.
+    """
+
+    strict = False
+
+
+class EnvAliasStrict(BaseAlias):
+    """Alternative name or names of environment variable for a field.
+
+    Same as EnvAlias, but ignores default variable name and starts
+    checking from given aliases.
+    """
+
+    strict = True
 
 
 T_co = TypeVar('T_co', bound=BaseConfig, covariant=True)
@@ -175,7 +214,7 @@ def from_env(  # noqa: C901, PLR0912, PLR0915
                 value = field.default
                 casting_callables = []
 
-            if value is None and isinstance(casting_callables[-1], EnvAlias):
+            if value is None and isinstance(casting_callables[-1], BaseAlias):
                 value, msg = casting_callables[-1].find_matching(env_name)
 
                 if msg:

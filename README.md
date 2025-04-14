@@ -1,6 +1,7 @@
 # Nano settings
 
-Creates simple python config from environment variables. Smaller analog of pydantic-settings.
+Creates simple python config from environment variables. Smaller analog of
+pydantic-settings.
 
 ## Installation
 
@@ -13,17 +14,17 @@ pip install nano-settings
 ```python
 from dataclasses import dataclass
 
-from nano_settings import BaseConfig, from_env
+import nano_settings as ns
 
 
 @dataclass
-class DbSetup(BaseConfig):
+class DbSetup(ns.BaseConfig):
     max_sessions: int
     autocommit: bool = True
 
 
 @dataclass
-class Database(BaseConfig):
+class Database(ns.BaseConfig):
     url: str
     timeout: int
     setup: DbSetup
@@ -32,7 +33,27 @@ class Database(BaseConfig):
 # export MY_VAR__URL=https://site.com
 # export MY_VAR__TIMEOUT=10
 # export MY_VAR__SETUP__MAX_SESSIONS=2
-config = from_env(Database, env_prefix='my_var')
+config = ns.from_env(Database, env_prefix='my_var')
 print(config)
 # Database(timeout=10, url='https://site.com', setup=DbSetup(max_sessions=2, autocommit=True))
+```
+
+### Aliases - when you want to get value by different name
+
+#### Normal - try default and then alternatives
+
+```python
+@dataclass
+class DbSetup(ns.BaseConfig):
+    variable: Annotated[str, ns.EnvAlias('OTHER')]
+    # will try to get `VARIABLE` and then `OTHER`
+```
+
+#### Strict - try only alternatives
+
+```python
+@dataclass
+class DbSetup(ns.BaseConfig):
+    variable: Annotated[str, ns.EnvAliasStrict('OTHER')]
+    # will only try to get `OTHER`
 ```

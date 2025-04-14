@@ -12,6 +12,7 @@ import pytest
 from nano_settings.code import BaseConfig
 from nano_settings.code import ConfigValidationError
 from nano_settings.code import EnvAlias
+from nano_settings.code import EnvAliasStrict
 from nano_settings.code import SecretStr
 from nano_settings.code import from_env
 from nano_settings.code import looks_like_boolean
@@ -340,6 +341,59 @@ def test_base_config_alias_bad():
             )
         ]
     )
+
+
+def test_base_config_alias_good_strict():
+    """Must find variable using different name."""
+    # arrange
+
+    @dataclass
+    class GoodConfig(BaseConfig):
+        variable_1: Annotated[str, EnvAliasStrict('LAMBDA')]
+
+    # act
+    with patch.dict(
+        'os.environ',
+        LAMBDA='1',
+    ):
+        config = from_env(GoodConfig)
+
+    # assert
+    assert config.variable_1 == '1'
+
+
+def test_base_config_alias_bad_strict():
+    """Must fail to create config because no env variables are set."""
+    # arrange
+    output = mock.Mock()
+
+    @dataclass
+    class BadConfig(BaseConfig):
+        variable_1: Annotated[str, EnvAliasStrict('LAMBDA')]
+
+    # act
+    with pytest.raises(SystemExit):
+        from_env(BadConfig, output=output)
+
+    # assert
+    output.assert_has_calls(
+        [
+            mock.call(
+                'None of expected environment variables are set: '
+                "'LAMBDA'"
+            )
+        ]
+    )
+
+
+@pytest.mark.parametrize('instance, string', [
+    (EnvAlias('A', 'B', 'C'), "EnvAlias('A', 'B', 'C')"),
+    (EnvAliasStrict('D', 'E', 'F'), "EnvAliasStrict('D', 'E', 'F')"),
+])
+def test_alias_repr(instance, string):
+    """Must check conversion to a string."""
+    # assert
+    assert str(instance) == string
 
 
 def test_base_config_default():
