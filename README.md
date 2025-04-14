@@ -3,6 +3,21 @@
 Creates simple python config from environment variables. Smaller analog of
 pydantic-settings.
 
+## In comparison with pydantic-settings
+
+Pros:
+
+* Easier to understand and support.
+* Relies only on standard library.
+* Uses dataclasses, not polluting your code with external types (if you're
+  using approaches similar to clean architecture).
+* Almost no configuration.
+
+Cons:
+
+* No validation, you have to do it yourself.
+* Almost no configuration.
+
 ## Installation
 
 ```shell
