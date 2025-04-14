@@ -199,7 +199,8 @@ def from_env(
 
         if get_origin(field.type) is Annotated:
             _extract_annotated(field, _prefixes, attributes, errors)
-        elif issubclass(field.type, BaseConfig):
+        elif (isinstance(field.type, type)
+                and issubclass(field.type, BaseConfig)):
             _extract_nested(
                 field=field,
                 field_exclude_prefix=field_exclude_prefix,
@@ -235,8 +236,8 @@ def _extract_straightforward(
         attributes[field.name] = _try_casting(
             field=field,
             value=value,
-            expected_type=field.type,
-            converter=field.type,
+            expected_type=field.type,  # type: ignore [arg-type]
+            converter=field.type,  # type: ignore [arg-type]
             errors=errors,
         )
     elif value is None and field.default is not MISSING:
@@ -252,7 +253,7 @@ def _extract_annotated(
     prefixes: Sequence[str],
     attributes: dict[str, Any],
     errors: list[str],
-):
+) -> None:
     """Extract value using sequence of casting callables."""
     prefix = ''.join(prefixes)
     env_name = f'{prefix}{field.name}'.upper()
@@ -302,10 +303,10 @@ def _extract_nested(  # noqa: PLR0913
     attributes: dict[str, Any],
     output: Callable,
     terminate: Callable,
-):
+) -> None:
     """Extract value recursively."""
     value = from_env(
-        model_type=field.type,
+        model_type=field.type,  # type: ignore [arg-type]
         env_prefix='',
         field_exclude_prefix=field_exclude_prefix,
         output=output,
