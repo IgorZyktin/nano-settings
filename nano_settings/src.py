@@ -1,13 +1,13 @@
 """Simple config class, when you do not need full size pydantic."""
 
 from collections.abc import Callable
+from collections.abc import Sequence
 from dataclasses import MISSING
 from dataclasses import Field
 from dataclasses import dataclass
 from dataclasses import fields
 import os
 import sys
-import types
 from typing import Annotated
 from typing import Any
 from typing import TypeVar
@@ -147,24 +147,39 @@ def _has_no_default(field: Field) -> str | None:
     return None
 
 
-def _is_union(field: Field) -> str | None:
-    """Return error message if field is a Union type."""
-    if isinstance(field.type, types.UnionType):
-        return (
-            f'Config values are not supposed '
-            f'to be of Union type: {field.name}: {field.type}'
+def _try_casting(
+    field: Field,
+    value: Any,
+    expected_type: type,
+    converter: Callable,
+    errors: list[str],
+) -> Any | None:
+    """Try to convert type of the input."""
+    try:
+        final_value = converter(value)
+    except ConfigValidationError as exc:
+        errors.append(str(exc))
+        return None
+    except Exception as exc:
+        msg = (
+            f'Failed to convert {field.name!r} '
+            f'to type {expected_type.__name__!r}, '
+            f'got {type(exc).__name__}: {exc}'
         )
-    return None
+        errors.append(msg)
+        return None
+
+    return final_value
 
 
-def from_env(  # noqa: C901, PLR0912, PLR0915
+def from_env(
     model_type: type[T_co],
     *,
     env_prefix: str = '',
     env_separator: str = '__',
     field_exclude_prefix: str = '_',
     output: Callable = print,
-    _prefixes: tuple[str, ...] | None = None,
+    _prefixes: list[str] | None = None,
     _terminate: Callable = lambda: sys.exit(1),
 ) -> T_co:
     """Build instance from environment variables."""
@@ -173,7 +188,7 @@ def from_env(  # noqa: C901, PLR0912, PLR0915
 
     if _prefixes is None:
         env_prefix = env_prefix or model_type.__name__.upper()
-        _prefixes = _prefixes or (env_prefix, env_separator)
+        _prefixes = _prefixes or [env_prefix, env_separator]
 
     for field in fields(model_type):
         if _is_excluded(field, field_exclude_prefix):
@@ -182,67 +197,20 @@ def from_env(  # noqa: C901, PLR0912, PLR0915
                 errors.append(msg)
             continue
 
-        msg = _is_union(field)
-        if msg:
-            errors.append(msg)
-            continue
-
         if get_origin(field.type) is Annotated:
-            expected_type, *casting_callables = get_args(field.type)
-        else:
-            expected_type = field.type
-            casting_callables = [field.type]
-
-        if issubclass(expected_type, BaseConfig):
-            value = from_env(
-                model_type=expected_type,
-                env_prefix='',
+            _extract_annotated(field, _prefixes, attributes, errors)
+        elif issubclass(field.type, BaseConfig):
+            _extract_nested(
+                field=field,
                 field_exclude_prefix=field_exclude_prefix,
+                env_separator=env_separator,
+                prefixes=_prefixes,
+                attributes=attributes,
                 output=output,
-                _prefixes=(*_prefixes, field.name.upper(), env_separator),
-                _terminate=_terminate,
+                terminate=_terminate,
             )
-            casting_callables.pop()
-
         else:
-            prefix = ''.join(_prefixes)
-            env_name = f'{prefix}{field.name}'.upper()
-            value = os.environ.get(env_name)
-
-            if value is None and field.default is not MISSING:
-                # using default without data casting
-                value = field.default
-                casting_callables = []
-
-            if value is None and isinstance(casting_callables[-1], BaseAlias):
-                value, msg = casting_callables[-1].find_matching(env_name)
-
-                if msg:
-                    errors.append(msg)
-                    continue
-
-            if value is None:
-                msg = f'Environment variable {env_name!r} is not set'
-                errors.append(msg)
-                continue
-
-        final_value = value
-        for _callable in reversed(casting_callables):
-            try:
-                final_value = _callable(final_value)
-            except ConfigValidationError as exc:
-                errors.append(str(exc))
-                break
-            except Exception as exc:
-                msg = (
-                    f'Failed to convert {field.name!r} '
-                    f'to type {expected_type.__name__!r}, '
-                    f'got {type(exc).__name__}: {exc}'
-                )
-                errors.append(msg)
-                break
-
-        attributes[field.name] = final_value
+            _extract_straightforward(field, _prefixes, attributes, errors)
 
     if errors:
         for error in errors:
@@ -250,3 +218,98 @@ def from_env(  # noqa: C901, PLR0912, PLR0915
         _terminate()
 
     return model_type(**attributes)
+
+
+def _extract_straightforward(
+    field: Field,
+    prefixes: list[str],
+    attributes: dict[str, Any],
+    errors: list[str],
+) -> None:
+    """Extract value using type itself."""
+    prefix = ''.join(prefixes)
+    env_name = f'{prefix}{field.name}'.upper()
+    value = os.environ.get(env_name)
+
+    if value is not None:
+        attributes[field.name] = _try_casting(
+            field=field,
+            value=value,
+            expected_type=field.type,
+            converter=field.type,
+            errors=errors,
+        )
+    elif value is None and field.default is not MISSING:
+        # using default without data casting
+        attributes[field.name] = field.default
+    else:
+        msg = f'Environment variable {env_name!r} is not set'
+        errors.append(msg)
+
+
+def _extract_annotated(
+    field: Field,
+    prefixes: Sequence[str],
+    attributes: dict[str, Any],
+    errors: list[str],
+):
+    """Extract value using sequence of casting callables."""
+    prefix = ''.join(prefixes)
+    env_name = f'{prefix}{field.name}'.upper()
+
+    expected_type, *casting_callables = get_args(field.type)
+
+    if isinstance(casting_callables[-1], BaseAlias):
+        value, msg = casting_callables[-1].find_matching(env_name)
+
+        if msg:
+            errors.append(msg)
+            return
+
+    else:
+        value = os.environ.get(env_name)
+        if value is None:
+            if field.default is not MISSING:
+                # using default without data casting
+                attributes[field.name] = field.default
+                return
+            else:
+                msg = f'Environment variable {env_name!r} is not set'
+                errors.append(msg)
+                return
+
+    final_value = value
+    for _callable in reversed(casting_callables):
+        final_value = _try_casting(
+            field=field,
+            value=final_value,
+            expected_type=expected_type,
+            converter=_callable,
+            errors=errors,
+        )
+
+        if final_value is None:
+            return
+
+    attributes[field.name] = final_value
+
+
+def _extract_nested(  # noqa: PLR0913
+    field: Field,
+    field_exclude_prefix: str,
+    env_separator: str,
+    prefixes: Sequence[str],
+    attributes: dict[str, Any],
+    output: Callable,
+    terminate: Callable,
+):
+    """Extract value recursively."""
+    value = from_env(
+        model_type=field.type,
+        env_prefix='',
+        field_exclude_prefix=field_exclude_prefix,
+        output=output,
+        _prefixes=[*prefixes, field.name.upper(), env_separator],
+        _terminate=terminate,
+    )
+    attributes[field.name] = value

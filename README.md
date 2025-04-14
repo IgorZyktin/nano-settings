@@ -9,7 +9,7 @@ pydantic-settings.
 pip install nano-settings
 ```
 
-## Usage
+## Basic usage
 
 ```python
 from dataclasses import dataclass
@@ -38,20 +38,70 @@ print(config)
 # Database(timeout=10, url='https://site.com', setup=DbSetup(max_sessions=2, autocommit=True))
 ```
 
-### Aliases - when you want to get value by different name
+## Supported variants
 
-#### Normal - try default and then alternatives
+### Straightforward - when your annotations are callable
 
 ```python
+from dataclasses import dataclass
+
+import nano_settings as ns
+
+
+@dataclass
+class Config(ns.BaseConfig):
+    variable: int
+    # equivalent of
+    # variable = int(os.getenv('VARIABLE'))
+```
+
+### Annotated - when your annotations are complex and cannot be called
+
+```python
+from dataclasses import dataclass
+from typing import Annotated
+import json
+
+import nano_settings as ns
+
+
+@dataclass
+class Config(ns.BaseConfig):
+    variable: Annotated[list[int], lambda x: x['key'], json.loads]
+    # equivalent of
+    # variable = json.loads(os.getenv('VARIABLE'))['key']
+```
+
+### Nested - when your annotations are models
+
+Example is listed in [Basic usage](#basic-usage)
+
+## Aliases - when you want to get value by different name
+
+### Normal - try default and then alternatives
+
+```python
+from dataclasses import dataclass
+from typing import Annotated
+
+import nano_settings as ns
+
+
 @dataclass
 class DbSetup(ns.BaseConfig):
     variable: Annotated[str, ns.EnvAlias('OTHER')]
     # will try to get `VARIABLE` and then `OTHER`
 ```
 
-#### Strict - try only alternatives
+### Strict - try only alternatives
 
 ```python
+from dataclasses import dataclass
+from typing import Annotated
+
+import nano_settings as ns
+
+
 @dataclass
 class DbSetup(ns.BaseConfig):
     variable: Annotated[str, ns.EnvAliasStrict('OTHER')]

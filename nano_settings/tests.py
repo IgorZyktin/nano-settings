@@ -9,13 +9,13 @@ from unittest.mock import patch
 
 import pytest
 
-from nano_settings.code import BaseConfig
-from nano_settings.code import ConfigValidationError
-from nano_settings.code import EnvAlias
-from nano_settings.code import EnvAliasStrict
-from nano_settings.code import SecretStr
-from nano_settings.code import from_env
-from nano_settings.code import looks_like_boolean
+from nano_settings.src import BaseConfig
+from nano_settings.src import ConfigValidationError
+from nano_settings.src import EnvAlias
+from nano_settings.src import EnvAliasStrict
+from nano_settings.src import SecretStr
+from nano_settings.src import from_env
+from nano_settings.src import looks_like_boolean
 
 
 def test_base_config_easy():
@@ -162,33 +162,6 @@ def test_base_config_hard():
     assert config.email.email == 'john@snow.com'
     assert config.database.url == 'https://site.com'
     assert config.database.timeout == 1
-
-
-def test_base_config_union():
-    """Must fail to create config because of the Union type."""
-    # arrange
-    output = mock.Mock()
-
-    @dataclass
-    class BadConfig(BaseConfig):
-        variable_1: int | None
-        variable_2: str
-
-    # act + assert
-    with pytest.raises(SystemExit):
-        from_env(BadConfig, output=output)
-
-    output.assert_has_calls(
-        [
-            mock.call(
-                'Config values are not supposed to be '
-                'of Union type: variable_1: int | None'
-            ),
-            mock.call(
-                "Environment variable 'BADCONFIG__VARIABLE_2' is not set"
-            ),
-        ]
-    )
 
 
 def test_secret_str_len():
@@ -377,19 +350,17 @@ def test_base_config_alias_bad_strict():
 
     # assert
     output.assert_has_calls(
-        [
-            mock.call(
-                'None of expected environment variables are set: '
-                "'LAMBDA'"
-            )
-        ]
+        [mock.call("None of expected environment variables are set: 'LAMBDA'")]
     )
 
 
-@pytest.mark.parametrize('instance, string', [
-    (EnvAlias('A', 'B', 'C'), "EnvAlias('A', 'B', 'C')"),
-    (EnvAliasStrict('D', 'E', 'F'), "EnvAliasStrict('D', 'E', 'F')"),
-])
+@pytest.mark.parametrize(
+    ('instance', 'string'),
+    [
+        (EnvAlias('A', 'B', 'C'), "EnvAlias('A', 'B', 'C')"),
+        (EnvAliasStrict('D', 'E', 'F'), "EnvAliasStrict('D', 'E', 'F')"),
+    ],
+)
 def test_alias_repr(instance, string):
     """Must check conversion to a string."""
     # assert
