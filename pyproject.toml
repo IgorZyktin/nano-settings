@@ -1,6 +1,6 @@
 [project]
 name = "nano-settings"
-version = "0.1.0"
+version = "0.1.1"
 description = "Extra small env config system (like pydantic-settings, but simpler)"
 authors = [
     { name = "Igor Zyktin", email = "nicord@yandex.ru" },
