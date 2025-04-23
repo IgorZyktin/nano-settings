@@ -17,6 +17,7 @@ from typing import get_origin
 __all__ = [
     'BaseAlias',
     'BaseConfig',
+    'Choices',
     'ConfigValidationError',
     'EnvAlias',
     'EnvAliasStrict',
@@ -138,9 +139,29 @@ class Nullable:
         """Initialize instance."""
         self.cast = cast
 
-    def __call__(self, value: str | None) -> Any:
+    def __call__(self, value: str) -> Any:
         """Return None if value is null."""
         return None if value.lower() == 'null' else self.cast(value)
+
+
+class Choices:
+    """Ensure that given variant is included into valid choices."""
+
+    def __init__(self, *choices: str, cast: Callable = lambda x: x) -> None:
+        """Initialize instance."""
+        self.choices = choices
+        self.cast = cast
+
+    def __call__(self, value: str) -> Any:
+        """Ensure that given variant is included into valid choices."""
+        if value not in self.choices:
+            msg = (
+                f'Field {{env_name}} is expected to '
+                f'be one of {self.choices!r}, got {value!r}'
+            )
+            raise ConfigValidationError(msg)
+
+        return self.cast(value)
 
 
 def _is_excluded(field: Field, field_exclude_prefix: str) -> bool:
@@ -160,6 +181,7 @@ def _has_no_default(field: Field) -> str | None:
 def _try_casting(
     field: Field,
     value: Any,
+    env_name: str,
     expected_type: type,
     converter: Callable,
     errors: list[str],
@@ -168,7 +190,7 @@ def _try_casting(
     try:
         final_value = converter(value)
     except ConfigValidationError as exc:
-        errors.append(str(exc))
+        errors.append(str(exc).format(env_name=env_name, field=field))
         return MISSING
     except Exception as exc:
         msg = (
@@ -250,6 +272,7 @@ def _extract_straightforward(
         attributes[field.name] = _try_casting(
             field=field,
             value=value,
+            env_name=env_name,
             expected_type=field.type,  # type: ignore [arg-type]
             converter=field.type,  # type: ignore [arg-type]
             errors=errors,
@@ -298,6 +321,7 @@ def _extract_annotated(
         final_value = _try_casting(
             field=field,
             value=final_value,
+            env_name=env_name,
             expected_type=expected_type,
             converter=_callable,
             errors=errors,

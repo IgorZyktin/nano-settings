@@ -1,4 +1,5 @@
 from nano_settings.src import BaseConfig
+from nano_settings.src import Choices
 from nano_settings.src import ConfigValidationError
 from nano_settings.src import EnvAlias
 from nano_settings.src import EnvAliasStrict

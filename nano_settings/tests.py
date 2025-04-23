@@ -10,6 +10,7 @@ from unittest.mock import patch
 import pytest
 
 from nano_settings.src import BaseConfig
+from nano_settings.src import Choices
 from nano_settings.src import ConfigValidationError
 from nano_settings.src import EnvAlias
 from nano_settings.src import EnvAliasStrict
@@ -434,3 +435,54 @@ def test_nullable():
     # assert
     assert config.variable_1 == reference
     assert config.variable_2 is None
+
+
+def test_choices_good():
+    """Ensure that given variant is included into choices."""
+    # arrange
+    output = mock.Mock()
+    reference = 'two'
+
+    @dataclass
+    class GoodConfig(BaseConfig):
+        variable: Annotated[str, Choices('one', 'two')]
+
+    # act
+    with patch.dict(
+        'os.environ',
+        GOODCONFIG__VARIABLE=reference,
+    ):
+        config = from_env(GoodConfig, output=output)
+
+    # assert
+    assert config.variable == reference
+
+
+def test_choices_bad():
+    """Ensure that given variant is not included into choices."""
+    # arrange
+    output = mock.Mock()
+
+    @dataclass
+    class BadConfig(BaseConfig):
+        variable: Annotated[str, Choices('one', 'two')]
+
+    # act
+    with (
+        patch.dict(
+            'os.environ',
+            BADCONFIG__VARIABLE='three',
+        ),
+        pytest.raises(SystemExit),
+    ):
+        from_env(BadConfig, output=output)
+
+    # assert
+    output.assert_has_calls(
+        [
+            mock.call(
+                'Field BADCONFIG__VARIABLE is expected '
+                "to be one of ('one', 'two'), got 'three'"
+            )
+        ]
+    )

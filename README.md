@@ -136,3 +136,17 @@ import nano_settings as ns
 class Config(ns.BaseConfig):
     variable: Annotated[int | None, ns.Nullable(int)]
 ```
+
+### Choices - if you have a set of valid variants
+
+```python
+from dataclasses import dataclass
+from typing import Annotated
+
+import nano_settings as ns
+
+
+@dataclass
+class Config(ns.BaseConfig):
+  variable: Annotated[str, ns.Choices('one', 'two')]
+```
