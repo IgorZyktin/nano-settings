@@ -180,7 +180,7 @@ class Interval:
         self.maximum = maximum
         self.cast = cast
 
-    def __call__(self, value: str) -> int:
+    def __call__(self, value: str) -> Any:
         """Ensure that given variant is included into valid choices."""
         try:
             number = self.cast(value)
