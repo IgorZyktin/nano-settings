@@ -277,8 +277,8 @@ def test_base_config_wrong_logic():
     output.assert_has_calls([mock.call('Not bigger')])
 
 
-def test_base_config_alias_good():
-    """Must find variable using different name."""
+def test_base_config_alias_good_1():
+    """Must find variable."""
     # arrange
 
     @dataclass
@@ -289,6 +289,25 @@ def test_base_config_alias_good():
     with patch.dict(
         'os.environ',
         MY_OTHER_VARIABLE='1',
+    ):
+        config = from_env(GoodConfig)
+
+    # assert
+    assert config.variable_1 == '1'
+
+
+def test_base_config_alias_good_2():
+    """Must find variable using initial name."""
+    # arrange
+
+    @dataclass
+    class GoodConfig(BaseConfig):
+        variable_1: Annotated[str, EnvAlias('MY_OTHER_VARIABLE')]
+
+    # act
+    with patch.dict(
+        'os.environ',
+        GOODCONFIG__VARIABLE_1='1',
     ):
         config = from_env(GoodConfig)
 
@@ -605,3 +624,41 @@ def test_separated():
 
     # assert
     assert config.variable == reference
+
+
+def test_unset_strict():
+    """Must fail to create config because no env variables are set."""
+    # arrange
+    output = mock.Mock()
+
+    @dataclass
+    class BadConfig(BaseConfig):
+        variable_1: str
+
+    # act
+    with pytest.raises(SystemExit):
+        from_env(BadConfig, output=output)
+
+    # assert
+    output.assert_has_calls(
+        [mock.call("Environment variable 'BADCONFIG__VARIABLE_1' is not set")]
+    )
+
+
+def test_unset_annotated():
+    """Must fail to create config because no env variables are set."""
+    # arrange
+    output = mock.Mock()
+
+    @dataclass
+    class BadConfig(BaseConfig):
+        variable_1: Annotated[str, str]
+
+    # act
+    with pytest.raises(SystemExit):
+        from_env(BadConfig, output=output)
+
+    # assert
+    output.assert_has_calls(
+        [mock.call("Environment variable 'BADCONFIG__VARIABLE_1' is not set")]
+    )
