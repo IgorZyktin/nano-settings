@@ -10,6 +10,7 @@ from unittest.mock import patch
 import pytest
 
 from nano_settings.src import BaseConfig
+from nano_settings.src import Boolean
 from nano_settings.src import Choices
 from nano_settings.src import ConfigValidationError
 from nano_settings.src import EnvAlias
@@ -18,7 +19,6 @@ from nano_settings.src import Interval
 from nano_settings.src import Nullable
 from nano_settings.src import SecretStr
 from nano_settings.src import from_env
-from nano_settings.src import looks_like_boolean
 
 
 def test_base_config_easy():
@@ -113,7 +113,7 @@ def test_base_config_medium():
     class MediumConfig(BaseConfig):
         variable_1: Annotated[int, int]
         variable_2: Annotated[str, str.title]
-        variable_3: Annotated[bool, looks_like_boolean]
+        variable_3: Annotated[bool, Boolean()]
 
     # act
     with patch.dict(

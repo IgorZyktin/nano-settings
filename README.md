@@ -165,3 +165,17 @@ class Config(ns.BaseConfig):
   variable_1: Annotated[int, ns.Interval(1, 15)]
   variable_2: Annotated[float, ns.Interval(0.0, 0.6, cast=float)]
 ```
+
+### Boolean - when you're using `true` or `false`
+
+```python
+from dataclasses import dataclass
+from typing import Annotated
+
+import nano_settings as ns
+
+
+@dataclass
+class Config(ns.BaseConfig):
+  variable_1: Annotated[bool, ns.Boolean()]
+```

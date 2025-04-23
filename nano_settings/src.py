@@ -17,6 +17,7 @@ from typing import get_origin
 __all__ = [
     'BaseAlias',
     'BaseConfig',
+    'Boolean',
     'Choices',
     'ConfigValidationError',
     'EnvAlias',
@@ -25,7 +26,6 @@ __all__ = [
     'Nullable',
     'SecretStr',
     'from_env',
-    'looks_like_boolean',
 ]
 
 
@@ -128,9 +128,13 @@ class EnvAliasStrict(BaseAlias):
     strict = True
 
 
-def looks_like_boolean(value: str) -> bool:
+class Boolean:
     """Return True if value looks like boolean."""
-    return value.lower() == 'true'
+
+    @staticmethod
+    def __call__(value: str) -> Any:
+        """Return None if value is null."""
+        return value.lower() == 'true'
 
 
 class Nullable:
