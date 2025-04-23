@@ -14,6 +14,7 @@ from nano_settings.src import Choices
 from nano_settings.src import ConfigValidationError
 from nano_settings.src import EnvAlias
 from nano_settings.src import EnvAliasStrict
+from nano_settings.src import Interval
 from nano_settings.src import Nullable
 from nano_settings.src import SecretStr
 from nano_settings.src import from_env
@@ -485,4 +486,100 @@ def test_choices_bad():
                 "to be one of ('one', 'two'), got 'three'"
             )
         ]
+    )
+
+
+def test_interval_good():
+    """Ensure that given value is within range (including)."""
+    # arrange
+    output = mock.Mock()
+    reference = 7
+
+    @dataclass
+    class GoodConfig(BaseConfig):
+        variable: Annotated[str, Interval(0, 15)]
+
+    # act
+    with patch.dict(
+        'os.environ',
+        GOODCONFIG__VARIABLE=str(reference),
+    ):
+        config = from_env(GoodConfig, output=output)
+
+    # assert
+    assert config.variable == reference
+
+
+def test_interval_too_low():
+    """Ensure that given value is out of bounds."""
+    # arrange
+    output = mock.Mock()
+
+    @dataclass
+    class BadConfig(BaseConfig):
+        variable: Annotated[str, Interval(0, 15)]
+
+    # act
+    with (
+        patch.dict(
+            'os.environ',
+            BADCONFIG__VARIABLE='-16',
+        ),
+        pytest.raises(SystemExit),
+    ):
+        from_env(BadConfig, output=output)
+
+    # assert
+    output.assert_has_calls(
+        [mock.call('BADCONFIG__VARIABLE is smaller than minimum, -16 < 0')]
+    )
+
+
+def test_interval_too_big():
+    """Ensure that given value is out of bounds."""
+    # arrange
+    output = mock.Mock()
+
+    @dataclass
+    class BadConfig(BaseConfig):
+        variable: Annotated[str, Interval(0.1, 0.2, cast=float)]
+
+    # act
+    with (
+        patch.dict(
+            'os.environ',
+            BADCONFIG__VARIABLE='0.45',
+        ),
+        pytest.raises(SystemExit),
+    ):
+        from_env(BadConfig, output=output)
+
+    # assert
+    output.assert_has_calls(
+        [mock.call('BADCONFIG__VARIABLE is bigger than maximum, 0.45 > 0.2')]
+    )
+
+
+def test_interval_wrong_type():
+    """Ensure that given value is not integer."""
+    # arrange
+    output = mock.Mock()
+
+    @dataclass
+    class BadConfig(BaseConfig):
+        variable: Annotated[str, Interval(0, 15)]
+
+    # act
+    with (
+        patch.dict(
+            'os.environ',
+            BADCONFIG__VARIABLE='sixteen',
+        ),
+        pytest.raises(SystemExit),
+    ):
+        from_env(BadConfig, output=output)
+
+    # assert
+    output.assert_has_calls(
+        [mock.call("Failed to convert BADCONFIG__VARIABLE, got 'sixteen'")]
     )

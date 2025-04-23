@@ -21,6 +21,7 @@ __all__ = [
     'ConfigValidationError',
     'EnvAlias',
     'EnvAliasStrict',
+    'Interval',
     'Nullable',
     'SecretStr',
     'from_env',
@@ -162,6 +163,41 @@ class Choices:
             raise ConfigValidationError(msg)
 
         return self.cast(value)
+
+
+class Interval:
+    """Ensure that given value is within range."""
+
+    def __init__(
+        self, minimum: float, maximum: float, cast: Callable = int
+    ) -> None:
+        """Initialize instance."""
+        self.minimum = minimum
+        self.maximum = maximum
+        self.cast = cast
+
+    def __call__(self, value: str) -> int:
+        """Ensure that given variant is included into valid choices."""
+        try:
+            number = self.cast(value)
+        except (TypeError, ValueError):
+            msg = f'Failed to convert {{env_name}}, got {value!r}'
+            raise ConfigValidationError(msg) from None
+
+        if self.minimum < number < self.maximum:
+            return number
+
+        if number > self.maximum:
+            msg = (
+                f'{{env_name}} is bigger than maximum, '
+                f'{number} > {self.maximum}'
+            )
+            raise ConfigValidationError(msg)
+
+        msg = (
+            f'{{env_name}} is smaller than minimum, {number} < {self.minimum}'
+        )
+        raise ConfigValidationError(msg)
 
 
 def _is_excluded(field: Field, field_exclude_prefix: str) -> bool:

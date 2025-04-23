@@ -150,3 +150,18 @@ import nano_settings as ns
 class Config(ns.BaseConfig):
   variable: Annotated[str, ns.Choices('one', 'two')]
 ```
+
+### Interval - when you have minimum and maximum (including)
+
+```python
+from dataclasses import dataclass
+from typing import Annotated
+
+import nano_settings as ns
+
+
+@dataclass
+class Config(ns.BaseConfig):
+  variable_1: Annotated[int, ns.Interval(1, 15)]
+  variable_2: Annotated[float, ns.Interval(0.0, 0.6, cast=float)]
+```

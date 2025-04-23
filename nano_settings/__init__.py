@@ -3,6 +3,7 @@ from nano_settings.src import Choices
 from nano_settings.src import ConfigValidationError
 from nano_settings.src import EnvAlias
 from nano_settings.src import EnvAliasStrict
+from nano_settings.src import Interval
 from nano_settings.src import Nullable
 from nano_settings.src import SecretStr
 from nano_settings.src import from_env
