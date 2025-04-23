@@ -18,6 +18,7 @@ from nano_settings.src import EnvAliasStrict
 from nano_settings.src import Interval
 from nano_settings.src import Nullable
 from nano_settings.src import SecretStr
+from nano_settings.src import Separated
 from nano_settings.src import from_env
 
 
@@ -583,3 +584,24 @@ def test_interval_wrong_type():
     output.assert_has_calls(
         [mock.call("Failed to convert BADCONFIG__VARIABLE, got 'sixteen'")]
     )
+
+
+def test_separated():
+    """Ensure that is split correctly."""
+    # arrange
+    output = mock.Mock()
+    reference = ['foo', 'bar', 'baz']
+
+    @dataclass
+    class GoodConfig(BaseConfig):
+        variable: Annotated[list[str], Separated()]
+
+    # act
+    with patch.dict(
+        'os.environ',
+        GOODCONFIG__VARIABLE=' , '.join(reference),
+    ):
+        config = from_env(GoodConfig, output=output)
+
+    # assert
+    assert config.variable == reference

@@ -7,4 +7,5 @@ from nano_settings.src import EnvAliasStrict
 from nano_settings.src import Interval
 from nano_settings.src import Nullable
 from nano_settings.src import SecretStr
+from nano_settings.src import Separated
 from nano_settings.src import from_env

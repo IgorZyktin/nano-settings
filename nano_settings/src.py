@@ -25,6 +25,7 @@ __all__ = [
     'Interval',
     'Nullable',
     'SecretStr',
+    'Separated',
     'from_env',
 ]
 
@@ -202,6 +203,20 @@ class Interval:
             f'{{env_name}} is smaller than minimum, {number} < {self.minimum}'
         )
         raise ConfigValidationError(msg)
+
+
+class Separated:
+    """Comma-separated (or any other separated) list of string."""
+
+    def __init__(self, sep: str = ',') -> None:
+        """Initialize instance."""
+        self.sep = sep
+
+    def __call__(self, value: str) -> list[str]:
+        """Split the string using separator."""
+        return [
+            clean for raw in value.split(self.sep) if (clean := raw.strip())
+        ]
 
 
 def _is_excluded(field: Field, field_exclude_prefix: str) -> bool:
