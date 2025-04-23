@@ -13,6 +13,7 @@ from nano_settings.src import BaseConfig
 from nano_settings.src import ConfigValidationError
 from nano_settings.src import EnvAlias
 from nano_settings.src import EnvAliasStrict
+from nano_settings.src import Nullable
 from nano_settings.src import SecretStr
 from nano_settings.src import from_env
 from nano_settings.src import looks_like_boolean
@@ -409,3 +410,27 @@ def test_base_config_long_conversion():
 
     # assert
     assert config.variable_1 == reference
+
+
+def test_nullable():
+    """Must create str | None parameter."""
+    # arrange
+    output = mock.Mock()
+    reference = 25
+
+    @dataclass
+    class GoodConfig(BaseConfig):
+        variable_1: Annotated[int | None, Nullable(int)]
+        variable_2: Annotated[int | None, Nullable(int)]
+
+    # act
+    with patch.dict(
+        'os.environ',
+        GOODCONFIG__VARIABLE_1=str(reference),
+        GOODCONFIG__VARIABLE_2='null',
+    ):
+        config = from_env(GoodConfig, output=output)
+
+    # assert
+    assert config.variable_1 == reference
+    assert config.variable_2 is None

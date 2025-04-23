@@ -103,7 +103,7 @@ import nano_settings as ns
 
 
 @dataclass
-class DbSetup(ns.BaseConfig):
+class Config(ns.BaseConfig):
     variable: Annotated[str, ns.EnvAlias('OTHER')]
     # will try to get `VARIABLE` and then `OTHER`
 ```
@@ -118,7 +118,21 @@ import nano_settings as ns
 
 
 @dataclass
-class DbSetup(ns.BaseConfig):
+class Config(ns.BaseConfig):
     variable: Annotated[str, ns.EnvAliasStrict('OTHER')]
     # will only try to get `OTHER`
+```
+
+### Nullable - if `null` is also a valid value
+
+```python
+from dataclasses import dataclass
+from typing import Annotated
+
+import nano_settings as ns
+
+
+@dataclass
+class Config(ns.BaseConfig):
+    variable: Annotated[int | None, ns.Nullable(int)]
 ```

@@ -20,6 +20,7 @@ __all__ = [
     'ConfigValidationError',
     'EnvAlias',
     'EnvAliasStrict',
+    'Nullable',
     'SecretStr',
     'from_env',
     'looks_like_boolean',
@@ -125,12 +126,21 @@ class EnvAliasStrict(BaseAlias):
     strict = True
 
 
-T_co = TypeVar('T_co', bound=BaseConfig, covariant=True)
-
-
 def looks_like_boolean(value: str) -> bool:
     """Return True if value looks like boolean."""
     return value.lower() == 'true'
+
+
+class Nullable:
+    """Return None if value is null."""
+
+    def __init__(self, cast: Callable) -> None:
+        """Initialize instance."""
+        self.cast = cast
+
+    def __call__(self, value: str | None) -> Any:
+        """Return None if value is null."""
+        return None if value.lower() == 'null' else self.cast(value)
 
 
 def _is_excluded(field: Field, field_exclude_prefix: str) -> bool:
@@ -153,13 +163,13 @@ def _try_casting(
     expected_type: type,
     converter: Callable,
     errors: list[str],
-) -> Any | None:
+) -> Any:
     """Try to convert type of the input."""
     try:
         final_value = converter(value)
     except ConfigValidationError as exc:
         errors.append(str(exc))
-        return None
+        return MISSING
     except Exception as exc:
         msg = (
             f'Failed to convert {field.name!r} '
@@ -167,9 +177,12 @@ def _try_casting(
             f'got {type(exc).__name__}: {exc}'
         )
         errors.append(msg)
-        return None
+        return MISSING
 
     return final_value
+
+
+T_co = TypeVar('T_co', bound=BaseConfig, covariant=True)
 
 
 def from_env(
@@ -290,7 +303,7 @@ def _extract_annotated(
             errors=errors,
         )
 
-        if final_value is None:
+        if final_value is MISSING:
             return
 
     attributes[field.name] = final_value
